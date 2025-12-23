@@ -1,15 +1,11 @@
 <?php
-// app/Http/Middleware/ShopifyAuth.php
 namespace App\Http\Middleware;
 
 use App\Http\Controllers\Webhooks\ProductWebhookController;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Shop;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 

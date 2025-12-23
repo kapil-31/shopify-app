@@ -11,11 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('shops', function (Blueprint $table) {
-            $table->id(); 
-            $table->string('shop')->unique();
-            $table->string('access_token');
-            $table->timestamps();
+        Schema::create('sync_loggers', function (Blueprint $table) {
+            $table->id();
+            $table->timestamp('last_sync');
         });
     }
 
@@ -24,6 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('shops');
+        Schema::dropIfExists('sync_loggers');
     }
 };

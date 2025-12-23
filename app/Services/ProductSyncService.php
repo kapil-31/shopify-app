@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Collection;
 use App\Models\Product;
 use App\Models\Shop;
+use App\Models\SyncLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log as FacadesLog;
 
 class ProductSyncService
@@ -43,75 +47,177 @@ class ProductSyncService
     }
 
 
-     public function sync(string $shopDomain): int
-    {
-        $token = Shop::where('shop', $shopDomain)->value('access_token');
+    //  public function sync(string $shopDomain): int
+    // {
+    //     $token = Shop::where('shop', $shopDomain)->value('access_token');
 
-         if (!$token) {
-            throw new \Exception('Shop not installed');
-        }
-
-
-        $query = <<<GQL
-        query getProducts(\$first: Int!, \$after: String) {
-          products(first: \$first, after: \$after) {
-            edges {
-              cursor
-              node {
-                id
-                title
-                status
-              }
-            }
-            pageInfo {
-              hasNextPage
-            }
-          }
-        }
-        GQL;
-
-        $after = null;
-        $count = 0;
-
-        do {
-            $response = $this->graphql->query(
-                $shopDomain,
-                $token,
-                $query,
-                ['first' => 50, 'after' => $after]
-            );
+    //      if (!$token) {
+    //         throw new \Exception('Shop not installed');
+    //     }
 
 
-            $products = $response['data']['products']['edges'];
-            $pageInfo = $response['data']['products']['pageInfo'];
+    //     $query = <<<GQL
+    //     query getProducts(\$first: Int!, \$after: String) {
+    //       products(first: \$first, after: \$after) {
+    //         edges {
+    //           cursor
+    //           node {
+    //             id
+    //             title
+    //             status
+    //           }
+    //         }
+    //         pageInfo {
+    //           hasNextPage
+    //         }
+    //       }
+    //     }
+    //     GQL;
 
-            dd($products);
+    //     $after = null;
+    //     $count = 0;
 
-            foreach ($products as $edge) {
-                $node = $edge['node'];
+    //     do {
+    //         $response = $this->graphql->query(
+    //             $shopDomain,
+    //             $token,
+    //             $query,
+    //             ['first' => 50, 'after' => $after]
+    //         );
 
-                Product::updateOrCreate(
-                    ['shopify_product_id' => $this->extractId($node['id'])],
-                    [
-                        'shop' => $shopDomain,
-                        'title' => $node['title'],
-                        'status' => $node['status'],
-                        'last_sync'=> now(),
-                    ]
-                );
 
-                $count++;
-                $after = $edge['cursor'];
-            }
+    //         $products = $response['data']['products']['edges'];
+    //         $pageInfo = $response['data']['products']['pageInfo'];
 
-        } while ($pageInfo['hasNextPage'] ?? false);
+    //         dd($products);
 
-        return $count;
-    }
+    //         foreach ($products as $edge) {
+    //             $node = $edge['node'];
+
+    //             Product::updateOrCreate(
+    //                 ['shopify_product_id' => $this->extractId($node['id'])],
+    //                 [
+    //                     'shop' => $shopDomain,
+    //                     'title' => $node['title'],
+    //                     'status' => $node['status'],
+    //                     'last_sync'=> now(),
+    //                 ]
+    //             );
+
+    //             $count++;
+    //             $after = $edge['cursor'];
+    //         }
+
+    //     } while ($pageInfo['hasNextPage'] ?? false);
+
+    //     return $count;
+    // }
 
      private function extractId(string $gid): int
     {
        
         return (int) basename($gid);
+    }
+
+
+     public function sync() 
+    { 
+        // pending using queues and jobs
+        $shop = auth()->user();
+
+
+        $query = <<<'GRAPHQL'
+query getProducts($first: Int!, $after: String) {
+  products(first: $first, after: $after) {
+    edges {
+      cursor
+      node {
+        id
+        title
+        status
+        collections(first: 10) {
+          edges {
+            node {
+              id
+              title
+            }
+          }
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+GRAPHQL;
+
+        $cursor = null;
+
+        do {
+            $response = Http::withHeaders([
+                'X-Shopify-Access-Token' => $shop->access_token,
+                'Content-Type' => 'application/json',
+            ])->post(
+                "https://{$shop->shop}/admin/api/2024-01/graphql.json",
+                [
+                    'query' => $query,
+                    'variables' => [
+                        'first' => 50,
+                        'after' => $cursor,
+                    ],
+                ]
+            )->json();
+
+
+            $products = $response['data']['products']['edges'];
+            $pageInfo = $response['data']['products']['pageInfo'];
+
+            foreach ($products as $edge) {
+                $node = $edge['node'];
+
+                $productId = (int) basename($node['id']);
+
+                $product = Product::updateOrCreate(
+                    [
+                        'shop_id' => $shop->id,
+                        'shopify_product_id' => $productId,
+                    ],
+                    [
+                        'title' => $node['title'],
+                        'status' => $node['status'],
+                    ]
+                );
+
+                foreach ($node['collections']['edges'] as $cEdge) {
+                    $cNode = $cEdge['node'];
+                    $collectionId = (int) basename($cNode['id']);
+
+                    $collection = Collection::updateOrCreate(
+                        [
+                            'shop_id' => $shop->id,
+                            'shopify_collection_id' => $collectionId,
+                        ],
+                        [
+                            'title' => $cNode['title'],
+                        ]
+                    );
+
+                    DB::table('collection_product')->updateOrInsert([
+                        'collection_id' => $collection->id,
+                        'product_id' => $product->id,
+                    ]);
+                }
+            }
+
+            $cursor = $pageInfo['hasNextPage']
+                ? $pageInfo['endCursor']
+                : null;
+        } while ($cursor);
+
+        SyncLogger::insert(['last_sync'=>now()]);
+
+        return response()->json(['status' => 'synced']);
     }
 }

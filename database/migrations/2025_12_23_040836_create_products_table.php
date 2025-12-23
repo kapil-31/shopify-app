@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->string('shop');
-            $table->unsignedBigInteger('shopify_product_id')->index();
+            $table->foreignId('shop_id')->constrained('shops','id')->cascadeOnDelete();
+            $table->unsignedBigInteger('shopify_product_id');
             $table->string('title');
             $table->string('status');
-            $table->timestamp('last_sync');
             $table->timestamps();
+            $table->unique(['shop_id', 'shopify_product_id']);
         });
     }
 

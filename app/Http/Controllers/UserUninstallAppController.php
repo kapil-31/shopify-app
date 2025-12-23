@@ -18,15 +18,9 @@ class UserUninstallAppController extends Controller
         $shopDomain = $payload['domain'];
 
         Log::info("User Uninstalled App",['data'=> $payload]);
+        Shop::where('shop', $shopDomain)->delete();
 
-        DB::transaction(function () use ($shopDomain) {
-            $shop = Shop::where('shop', $shopDomain)->first();
-
-            if ($shop) {
-                Product::where('shop',$shopDomain)->delete();
-                $shop->delete();
-            }
-        });
+        
     }
      private function verify(Request $request): void
     {

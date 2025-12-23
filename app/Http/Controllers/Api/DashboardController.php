@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Collection;
 use App\Models\Product;
+use App\Models\SyncLogger;
 
 class DashboardController extends Controller
 {
@@ -11,7 +13,10 @@ class DashboardController extends Controller
     {
         return response()->json([
             'total_products' => Product::count(),
-            'last_sync' => Product::latest('last_sync')->value('last_sync')?->diffForHumans(),
+            'total_collections'=> Collection::count(),
+            'last_sync' => SyncLogger::latest('last_sync')->value('last_sync')?->diffForHumans(),
         ]);
     }
+
+   
 }

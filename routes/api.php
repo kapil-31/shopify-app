@@ -14,7 +14,7 @@ Route::middleware(['api.shopify.auth'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'summary']);
     Route::get('/products', [ProductController::class, 'index']);
-    Route::get('/api/collections', [CollectionController::class, 'index']);
+    Route::get('/dashboard/collections', [CollectionController::class, 'collections']);
 
 
 

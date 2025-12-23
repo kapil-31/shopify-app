@@ -7,11 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'shop',
+        'shop_id',
         'shopify_product_id',
         'title',
         'status',
-        'last_sync'
     ];
-    protected $casts = ['last_sync'=> 'datetime'];
+
+
+     public function collections()
+    {
+        return $this->belongsToMany(Collection::class);
+    }
 }

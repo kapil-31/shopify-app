@@ -34,7 +34,7 @@ export default function Dashboard() {
       .finally(() => {
         setLoading(false);
       });
-  }, [authFetch]);
+  }, []);
 
   if (loading) {
     return (

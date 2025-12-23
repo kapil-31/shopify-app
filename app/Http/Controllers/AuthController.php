@@ -2,25 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Webhooks\ProductWebhookController;
 use App\Models\Shop;
-use App\Services\WebhookService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
-    public function __construct(private WebhookService $webhookService)
-    {
-    
-    }
+    public function __construct() {}
     public function redirectToShopify(Request $request)
     {
         $shop = $request->query('shop');
+        Log::info('redirectToShopify', ['data' => $shop]);
 
 
         abort_unless($shop, 400, 'Missing shop parameter');
-
 
 
         $query = http_build_query([
@@ -30,10 +28,12 @@ class AuthController extends Controller
             'state' => csrf_token(),
         ]);
 
+
         return redirect("https://{$shop}/admin/oauth/authorize?$query");
     }
     public function handleCallback(Request $request)
     {
+
         /** @var \Illuminate\Http\Client\Response $response */
         $response = Http::post("https://{$request->shop}/admin/oauth/access_token", [
             'client_id' => config('services.shopify.key'),
@@ -47,9 +47,13 @@ class AuthController extends Controller
             ['shop' => $request->shop],
             ['access_token' => $token]
         );
-        Auth::login($shop);
+        // registeringwebhooks 
+        app(ProductWebhookController::class)->registerWebhooks($shop->shop);
 
-        $this->webhookService->registerWebhooks($shop->shop);
+
+        Log::info('user_thirdd___user', ['shop' => $shop]);
+
+
 
         return redirect()->route('home');
     }

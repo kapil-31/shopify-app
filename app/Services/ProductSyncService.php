@@ -85,6 +85,8 @@ class ProductSyncService
             $products = $response['data']['products']['edges'];
             $pageInfo = $response['data']['products']['pageInfo'];
 
+            dd($products);
+
             foreach ($products as $edge) {
                 $node = $edge['node'];
 

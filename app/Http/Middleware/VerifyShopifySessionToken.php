@@ -21,23 +21,19 @@ class VerifyShopifySessionToken
         }
 
         try {
-            // Decode and verify signature using your API SECRET
             $payload = JWT::decode(
                 $token,
                 new Key(config('services.shopify.secret'), 'HS256')
             );
 
-            // Verify iss (issuer) is your shop format
             if (!str_ends_with($payload->iss, '.myshopify.com/admin')) {
                 return response()->json(['error' => 'Invalid issuer'], 401);
             }
 
-            // Verify aud (audience) matches your API KEY
             if ($payload->aud !== config('services.shopify.key')) {
                 return response()->json(['error' => 'Invalid audience'], 401);
             }
 
-            // Extract shop domain from dest (or iss)
             $shop = str_replace(['https://', '/admin'], '', $payload->dest ?? $payload->iss);
 
             $shopModel = \App\Models\Shop::where('shop', $shop)->first();

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('sync_loggers', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('shop_id')->constrained('shops','id')->cascadeOnDelete();
             $table->timestamp('last_sync');
         });
     }

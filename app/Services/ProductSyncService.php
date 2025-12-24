@@ -141,7 +141,7 @@ GRAPHQL;
                 : null;
         } while ($cursor);
 
-        SyncLogger::insert(['last_sync'=>now(),'shop_id'=> auth()->user->id]);
+        SyncLogger::insert(['last_sync'=>now(),'shop_id'=>$shop->id]);
 
         return response()->json(['status' => 'synced']);
     }
